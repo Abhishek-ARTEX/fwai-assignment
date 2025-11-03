@@ -1,78 +1,53 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
-import { NewsArticle, ViralIdea, InstagramPost } from '../types';
+import { GoogleGenAI } from "@google/genai";
+import { ViralIdea, InstagramPost } from '../types';
 
 /**
  * Creates and returns a GoogleGenAI client.
  * Throws an error if the API key is not found in environment variables.
  */
 function getAiClient(): GoogleGenAI {
-  const apiKey = process.env.API_KEY;
+  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : undefined;
   if (!apiKey) {
     throw new Error("Google AI API key is missing. Please ensure the API_KEY environment variable is set in your deployment environment.");
   }
   return new GoogleGenAI({ apiKey });
 }
 
-export async function findTopNews(industry: string): Promise<NewsArticle[]> {
-  const apiKey = process.env.GNEWS_API_KEY;
-  if (!apiKey) {
-    throw new Error("GNews API key is missing. Please set the GNEWS_API_KEY environment variable.");
-  }
-
-  const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(industry)}&lang=en&sortby=relevance&max=10&apikey=${apiKey}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`GNews API error: ${errorData.errors.join(', ')}`);
-    }
-
-    const data = await response.json();
-    
-    // Map the GNews article format to our internal NewsArticle type
-    return data.articles.map((article: any) => ({
-      title: article.title,
-      summary: article.description,
-      url: article.url,
-    }));
-  } catch (error: any) {
-    console.error("Failed to fetch news from GNews API:", error);
-    throw new Error(`Could not fetch news from GNews API: ${error.message}`);
-  }
-}
-
-export async function generateViralIdeas(newsArticles: NewsArticle[]): Promise<ViralIdea[]> {
+export async function generateViralIdeas(industry: string): Promise<ViralIdea[]> {
   const ai = getAiClient();
-  const newsSummaries = newsArticles.map(article => `- ${article.title}: ${article.summary}`).join('\n');
   
+  const prompt = `
+    Based on the absolute latest news and trends for the "${industry}" industry, generate 10 viral Instagram post ideas.
+    Each idea should be a short, catchy title.
+    Respond with ONLY a valid JSON array of objects, where each object has a single key "title". Do not include any other text, markdown, or explanations.
+    Example format: [{"title": "AI Just Changed Medicine Forever"}, {"title": "The Future of Sustainable Fashion is Here"}]
+  `;
+
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: `Based on these news articles:\n${newsSummaries}\n\nGenerate 10 viral Instagram post ideas. Each idea should be a short, catchy title.`,
+    contents: prompt,
     config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-          },
-          required: ["title"],
-        },
-      },
+      tools: [{ googleSearch: {} }],
     },
   });
 
   const jsonText = response.text.trim();
+  // The response might be wrapped in ```json ... ```, so we strip that.
+  const cleanedJsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+
   try {
-      return JSON.parse(jsonText);
+      const ideas = JSON.parse(cleanedJsonText);
+      // Basic validation to ensure we got an array of objects with titles
+      if (Array.isArray(ideas) && ideas.every(item => typeof item.title === 'string')) {
+          return ideas;
+      }
+      throw new Error("Parsed JSON does not match the expected format.");
   } catch(e) {
-      console.error("Failed to parse viral ideas JSON:", jsonText);
-      throw new Error("Could not parse viral ideas from AI response.");
+      console.error("Failed to parse viral ideas JSON from grounded response:", cleanedJsonText);
+      throw new Error("Could not parse viral ideas from AI response. The response may not be valid JSON.");
   }
 }
+
 
 const exampleCaption = `Instead of giving his 1-year-old niece a toy, Kevin gave her five shares of NVIDIA. He printed the certificate, framed it, and brought it to her birthday as a way to mark the start of her financial future.
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { InstagramPost } from './types';
-import { findTopNews, generateViralIdeas, generatePostContent } from './services/geminiService';
+import { generateViralIdeas, generatePostContent } from './services/geminiService';
 import { IndustryInput } from './components/IndustryInput';
 import { PostCard } from './components/PostCard';
 import { Loader } from './components/Loader';
@@ -23,15 +23,13 @@ function App() {
     setPosts([]);
 
     try {
-      setProgressMessage('Fetching top news from GNews...');
-      const newsArticles = await findTopNews(industry);
+      setProgressMessage('Finding latest trends and brainstorming viral ideas...');
+      const viralIdeas = await generateViralIdeas(industry);
 
-      if (newsArticles.length === 0) {
-        throw new Error("No news articles found. The industry might be too specific or there's an issue with the GNews API.");
+      if (viralIdeas.length === 0) {
+        throw new Error("Could not generate any viral ideas. The industry might be too niche, or there was an issue with the AI model.");
       }
 
-      setProgressMessage('Brainstorming viral ideas...');
-      const viralIdeas = await generateViralIdeas(newsArticles);
       const ideasToProcess = viralIdeas.slice(0, 10); // Limit to 10
 
       for (let i = 0; i < ideasToProcess.length; i++) {
