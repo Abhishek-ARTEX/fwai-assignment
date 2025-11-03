@@ -1,4 +1,3 @@
-
 export interface NewsArticle {
   title: string;
   summary: string;
@@ -15,4 +14,11 @@ export interface InstagramPost {
   caption: string;
   imageText: string;
   imageUrl: string;
+}
+
+export interface PostContentIdea {
+  ideaTitle: string;
+  caption: string;
+  imageText: string;
+  imagePrompt: string;
 }
