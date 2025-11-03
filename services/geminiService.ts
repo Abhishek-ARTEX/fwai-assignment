@@ -8,7 +8,7 @@ import { InstagramPost } from '../types';
 function getAiClient(): GoogleGenAI {
   const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : undefined;
   if (!apiKey) {
-    throw new Error("Google AI API key is missing. Go to your Vercel project settings, find 'Environment Variables', and add a new variable named API_KEY with your key as the value. Then, redeploy your project.");
+    throw new Error("API key is missing. Please select an API key to continue.");
   }
   return new GoogleGenAI({ apiKey });
 }
