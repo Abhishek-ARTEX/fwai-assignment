@@ -2,7 +2,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { NewsArticle, ViralIdea, InstagramPost } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Creates and returns a GoogleGenAI client.
+ * Throws an error if the API key is not found in environment variables.
+ */
+function getAiClient(): GoogleGenAI {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("Google AI API key is missing. Please ensure the API_KEY environment variable is set in your deployment environment.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export async function findTopNews(industry: string): Promise<NewsArticle[]> {
   const apiKey = process.env.GNEWS_API_KEY;
@@ -34,6 +44,7 @@ export async function findTopNews(industry: string): Promise<NewsArticle[]> {
 }
 
 export async function generateViralIdeas(newsArticles: NewsArticle[]): Promise<ViralIdea[]> {
+  const ai = getAiClient();
   const newsSummaries = newsArticles.map(article => `- ${article.title}: ${article.summary}`).join('\n');
   
   const response = await ai.models.generateContent({
@@ -76,6 +87,8 @@ What are your thoughts on this?
 If you want to keep up with all the AI news, useful tips, and important developments, join 80k+ subscribers reading our free newsletter`;
 
 export async function generatePostContent(idea: ViralIdea): Promise<Omit<InstagramPost, 'id'>> {
+  const ai = getAiClient();
+  
   // 1. Generate Caption
   const captionResponse = await ai.models.generateContent({
     model: "gemini-2.5-flash",
