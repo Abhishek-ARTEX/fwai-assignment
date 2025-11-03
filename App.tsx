@@ -1,12 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import { InstagramPost } from './types';
-import { generateViralIdeas, generatePostContent } from './services/geminiService';
+import { generatePostIdeasAndContent, generateImageForPost } from './services/geminiService';
 import { IndustryInput } from './components/IndustryInput';
 import { PostCard } from './components/PostCard';
 import { Loader } from './components/Loader';
 
+// This interface defines the structure of the content generated in the first batch call.
+interface PostContentIdea {
+  ideaTitle: string;
+  caption: string;
+  imageText: string;
+  imagePrompt: string;
+}
+
 function App() {
-  const [industry, setIndustry] = useState<string>('Healthcare');
+  const [industry, setIndustry] = useState<string>('Artificial Intelligence');
   const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progressMessage, setProgressMessage] = useState<string>('');
@@ -23,38 +31,33 @@ function App() {
     setPosts([]);
 
     try {
-      setProgressMessage('Finding latest trends and brainstorming viral ideas...');
-      const viralIdeas = await generateViralIdeas(industry);
+      setProgressMessage('Finding latest trends and brainstorming 10 post ideas...');
+      const postIdeas: PostContentIdea[] = await generatePostIdeasAndContent(industry);
 
-      if (viralIdeas.length === 0) {
-        throw new Error("Could not generate any viral ideas. The industry might be too niche, or there was an issue with the AI model.");
+      if (postIdeas.length === 0) {
+        throw new Error("Could not generate any post ideas. The industry might be too niche, or there was an issue with the AI model.");
       }
-
-      const ideasToProcess = viralIdeas.slice(0, 10); // Limit to 10
+      
+      const ideasToProcess = postIdeas.slice(0, 10);
 
       for (let i = 0; i < ideasToProcess.length; i++) {
         const idea = ideasToProcess[i];
-        setProgressMessage(`Creating post ${i + 1}/${ideasToProcess.length}: ${idea.title}`);
+        setProgressMessage(`[${i + 1}/${ideasToProcess.length}] Generating image for: "${idea.ideaTitle}"`);
         
-        const generateWithRetry = async (retries = 2) => {
-            for (let j = 0; j < retries; j++) {
-                try {
-                    const newPost = await generatePostContent(idea);
-                    return newPost;
-                } catch (e: any) {
-                    console.error(`Attempt ${j + 1} failed for "${idea.title}":`, e.message);
-                    if (j === retries - 1) throw e;
-                }
-            }
-            return null;
+        const imageUrl = await generateImageForPost(idea.imagePrompt);
+        
+        const newPost: InstagramPost = {
+            id: `${Date.now()}-${i}`,
+            ideaTitle: idea.ideaTitle,
+            caption: idea.caption,
+            imageText: idea.imageText,
+            imageUrl: imageUrl,
         };
-        
-        const newPost = await generateWithRetry();
 
-        if (newPost) {
-          setPosts(prevPosts => [...prevPosts, { ...newPost, id: `${Date.now()}-${i}` }]);
-        }
+        // Update state with the new post, causing it to render immediately
+        setPosts(prevPosts => [...prevPosts, newPost]);
       }
+
     } catch (err: any) {
       console.error(err);
       setError(`An error occurred: ${err.message}. Please try again.`);
@@ -67,9 +70,9 @@ function App() {
   return (
     <div>
       <header className="app-header">
-        <h1>AI Viral Post Creator</h1>
+        <h1>Viral Post Engine</h1>
         <p>
-          Enter an industry to find the latest news, generate 10 viral post ideas, and create Instagram posts with captions and images.
+          Enter an industry to generate 10 viral post ideas, complete with AI-generated captions and images.
         </p>
       </header>
       
@@ -92,8 +95,8 @@ function App() {
 
         {!isLoading && posts.length === 0 && !error && (
             <div className="placeholder-text">
-              <p>Your generated posts will appear here.</p>
-              <p>Ready to go viral?</p>
+              <p>Your viral posts will appear here.</p>
+              <p>Let's create something amazing!</p>
             </div>
         )}
 

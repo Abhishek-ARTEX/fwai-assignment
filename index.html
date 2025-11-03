@@ -6,176 +6,243 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Viral Post Creator</title>
     <style>
+      :root {
+        --background-color: #121212;
+        --surface-color: #1e1e1e;
+        --primary-text-color: #e0e0e0;
+        --secondary-text-color: #aaaaaa;
+        --accent-color: #4A90E2;
+        --accent-hover-color: #357ABD;
+        --border-color: #333333;
+        --error-bg-color: #2c1d1d;
+        --error-border-color: #a94442;
+        --error-text-color: #f2dede;
+      }
+      
+      /* General styles */
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background-color: #ffffff;
-        color: #000000;
+        background-color: var(--background-color);
+        color: var(--primary-text-color);
         margin: 0;
         padding: 2rem;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
       #root {
         max-width: 1200px;
         margin: 0 auto;
       }
+
+      /* Header */
       .app-header {
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 3rem;
       }
       .app-header h1 {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #000;
+        font-size: 2.8rem;
+        font-weight: 700;
+        color: #fff;
         margin-bottom: 0.5rem;
+        letter-spacing: -1px;
       }
       .app-header p {
-        color: #333;
+        color: var(--secondary-text-color);
         max-width: 600px;
         margin: 0 auto;
+        font-size: 1.1rem;
+        line-height: 1.6;
       }
+
+      /* Input form */
       .industry-input-container {
         max-width: 600px;
-        margin: 0 auto 2rem auto;
+        margin: 0 auto 3rem auto;
       }
       .industry-input-form {
         display: flex;
         gap: 0.75rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       }
       .industry-input-field {
         flex-grow: 1;
-        padding: 0.75rem;
+        padding: 1rem;
         font-size: 1rem;
-        border: 1px solid #ccc;
-        border-radius: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background-color: var(--surface-color);
+        color: var(--primary-text-color);
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .industry-input-field:focus {
+        border-color: var(--accent-color);
       }
       .industry-input-button {
-        padding: 0.75rem 1.5rem;
+        padding: 1rem 1.5rem;
         font-size: 1rem;
         font-weight: 600;
         color: #fff;
-        background-color: #333;
+        background-color: var(--accent-color);
         border: none;
-        border-radius: 0;
+        border-radius: 6px;
         cursor: pointer;
         transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .industry-input-button:hover:not(:disabled) {
-        background-color: #111;
+        background-color: var(--accent-hover-color);
       }
       .industry-input-button:disabled {
-        background-color: #999;
+        background-color: #555;
+        color: #999;
         cursor: not-allowed;
       }
+
+      /* Loader */
       .loader-container {
         text-align: center;
-        margin: 3rem 0;
+        margin: 4rem 0;
       }
       .loader-spinner {
         display: inline-block;
-        width: 2.5rem;
-        height: 2.5rem;
-        border: 4px solid #e3e3e3;
-        border-top: 4px solid #333;
+        width: 3rem;
+        height: 3rem;
+        border: 4px solid var(--border-color);
+        border-top: 4px solid var(--accent-color);
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
       .loader-message {
-        margin-top: 1rem;
-        color: #555;
+        margin-top: 1.5rem;
+        color: var(--secondary-text-color);
+        font-size: 1rem;
       }
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      
+      /* Error */
       .error-container {
         max-width: 600px;
         margin: 2rem auto;
-        padding: 1rem;
-        border: 1px solid #d9534f;
-        background-color: #f2dede;
-        color: #a94442;
-        border-radius: 0;
+        padding: 1.5rem;
+        border: 1px solid var(--error-border-color);
+        background-color: var(--error-bg-color);
+        color: var(--error-text-color);
+        border-radius: 6px;
         text-align: center;
       }
       .error-title {
         font-weight: bold;
+        font-size: 1.1rem;
       }
+
+      /* Placeholder */
       .placeholder-text {
         text-align: center;
         color: #888;
-        margin-top: 4rem;
+        margin-top: 5rem;
+        font-size: 1.1rem;
       }
+
+      /* Posts Grid */
       .posts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-top: 2rem;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
       }
+
+      /* Post Card */
       .post-card {
-        background-color: #fff;
-        border: 1px solid #ddd;
-        border-radius: 0;
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .post-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
       }
       .post-card-image-container {
         position: relative;
         width: 100%;
-        padding-top: 100%;
+        padding-top: 100%; /* 1:1 Aspect Ratio */
         background-size: cover;
         background-position: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        box-sizing: border-box;
-      }
-      .post-card-image-content {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
       .post-card-image-overlay {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.6);
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.1));
+      }
+      .post-card-image-content {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        padding: 1.5rem;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        text-align: center;
       }
       .post-card-image-text {
-        position: relative;
-        z-index: 10;
-        font-size: 1.75rem;
-        font-weight: bold;
+        font-size: 1.8rem;
+        font-weight: 700;
         color: white;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        line-height: 1.2;
       }
       .post-card-caption-container {
-        padding: 1rem;
+        padding: 1.5rem;
         flex-grow: 1;
       }
       .post-card-caption {
         white-space: pre-wrap;
-        font-size: 0.9rem;
-        line-height: 1.6;
-        color: #333;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: var(--primary-text-color);
       }
+      .post-card-footer {
+        padding: 0 1.5rem 1.5rem 1.5rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: auto;
+      }
+      .copy-button {
+        background-color: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--secondary-text-color);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+      }
+      .copy-button:hover {
+        background-color: var(--border-color);
+        color: var(--primary-text-color);
+      }
+      .copy-button svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Responsive */
       @media (max-width: 640px) {
-        body {
-          padding: 1rem;
-        }
-        .app-header h1 {
-          font-size: 2rem;
-        }
-        .industry-input-form {
-          flex-direction: column;
-        }
+        body { padding: 1rem; }
+        .app-header h1 { font-size: 2.2rem; }
+        .industry-input-form { flex-direction: column; }
       }
     </style>
   <script type="importmap">

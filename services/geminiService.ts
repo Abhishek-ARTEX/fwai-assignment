@@ -1,5 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-import { ViralIdea, InstagramPost } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { InstagramPost } from '../types';
 
 /**
  * Creates and returns a GoogleGenAI client.
@@ -13,41 +13,12 @@ function getAiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
-export async function generateViralIdeas(industry: string): Promise<ViralIdea[]> {
-  const ai = getAiClient();
-  
-  const prompt = `
-    Based on the absolute latest news and trends for the "${industry}" industry, generate 10 viral Instagram post ideas.
-    Each idea should be a short, catchy title.
-    Respond with ONLY a valid JSON array of objects, where each object has a single key "title". Do not include any other text, markdown, or explanations.
-    Example format: [{"title": "AI Just Changed Medicine Forever"}, {"title": "The Future of Sustainable Fashion is Here"}]
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-    },
-  });
-
-  const jsonText = response.text.trim();
-  // The response might be wrapped in ```json ... ```, so we strip that.
-  const cleanedJsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-
-  try {
-      const ideas = JSON.parse(cleanedJsonText);
-      // Basic validation to ensure we got an array of objects with titles
-      if (Array.isArray(ideas) && ideas.every(item => typeof item.title === 'string')) {
-          return ideas;
-      }
-      throw new Error("Parsed JSON does not match the expected format.");
-  } catch(e) {
-      console.error("Failed to parse viral ideas JSON from grounded response:", cleanedJsonText);
-      throw new Error("Could not parse viral ideas from AI response. The response may not be valid JSON.");
-  }
+interface PostContentIdea {
+  ideaTitle: string;
+  caption: string;
+  imageText: string;
+  imagePrompt: string;
 }
-
 
 const exampleCaption = `Instead of giving his 1-year-old niece a toy, Kevin gave her five shares of NVIDIA. He printed the certificate, framed it, and brought it to her birthday as a way to mark the start of her financial future.
 
@@ -61,31 +32,62 @@ What are your thoughts on this?
 
 If you want to keep up with all the AI news, useful tips, and important developments, join 80k+ subscribers reading our free newsletter`;
 
-export async function generatePostContent(idea: ViralIdea): Promise<Omit<InstagramPost, 'id'>> {
+
+export async function generatePostIdeasAndContent(industry: string): Promise<PostContentIdea[]> {
+    const ai = getAiClient();
+
+    const postSchema = {
+        type: Type.OBJECT,
+        properties: {
+            ideaTitle: { type: Type.STRING, description: 'A short, catchy title for the viral post idea.' },
+            caption: { type: Type.STRING, description: `An engaging, viral Instagram caption. It should tell a story or present an interesting fact, be easy to read with good spacing, use relevant emojis, and end with a call-to-action to spark conversation. Emulate the provided example's tone.` },
+            imageText: { type: Type.STRING, description: 'A short, powerful, headline-style text (5-10 words) to overlay on an image.' },
+            imagePrompt: { type: Type.STRING, description: 'A concise, descriptive prompt for an AI image generator to create a symbolic, visually appealing background image. The image should be abstract or metaphorical, without any text.' }
+        },
+        required: ['ideaTitle', 'caption', 'imageText', 'imagePrompt']
+    };
+
+    const responseSchema = {
+        type: Type.ARRAY,
+        items: postSchema,
+    };
+
+    const prompt = `
+        You are an expert social media manager specializing in creating viral content.
+        Based on the absolute latest news and trends for the "${industry}" industry, generate a list of 10 unique, viral Instagram post ideas.
+        For each idea, you must generate all required content: title, caption, image overlay text, and an image generator prompt.
+        - The caption should emulate the tone and structure of this example: \n---\n${exampleCaption}\n---
+        - The image text should be a short, powerful headline (5-10 words).
+        - The image prompt should be for a symbolic, abstract, or metaphorical background image, without text.
+        
+        Respond with ONLY a valid JSON array of 10 objects that conforms to the provided schema.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-pro",
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema,
+        },
+    });
+    
+    const jsonText = response.text.trim();
+    try {
+        const ideas = JSON.parse(jsonText);
+        if (Array.isArray(ideas) && ideas.length > 0) {
+            return ideas;
+        }
+        throw new Error("Parsed JSON is not a valid array of post ideas.");
+    } catch (e) {
+        console.error("Failed to parse post ideas JSON from AI response:", jsonText, e);
+        throw new Error("Could not parse post ideas from AI response. The response may not be valid JSON.");
+    }
+}
+
+export async function generateImageForPost(imagePrompt: string): Promise<string> {
   const ai = getAiClient();
-  
-  // 1. Generate Caption
-  const captionResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `Based on the idea "${idea.title}", write an engaging, viral Instagram caption. The caption should tell a story or present an interesting fact, be easy to read, and spark conversation. Use a tone similar to this example, including emojis and a call to action:\n\n---\n${exampleCaption}\n---`,
-  });
-  const caption = captionResponse.text;
 
-  // 2. Generate Image Text
-  const imageTextResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `From this idea: "${idea.title}", create a short, powerful, headline-style text (5-10 words) to overlay on an image. The text should be impactful and grab attention immediately.`,
-  });
-  const imageText = imageTextResponse.text.replace(/"/g, ''); // remove quotes
-
-  // 3. Generate Image Prompt
-  const imagePromptResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `Create a concise, descriptive prompt for an AI image generator to create a symbolic, visually appealing background image for the theme: "${idea.title}". The image should be abstract or metaphorical, without any text. For example, for 'AI in healthcare', a good prompt would be 'biometric data streams flowing through a stylized neural network, digital art, cinematic lighting'.`,
-  });
-  const imagePrompt = imagePromptResponse.text;
-
-  // 4. Generate Image
   const imageResponse = await ai.models.generateImages({
     model: 'imagen-4.0-generate-001',
     prompt: imagePrompt,
@@ -100,7 +102,5 @@ export async function generatePostContent(idea: ViralIdea): Promise<Omit<Instagr
   if (!base64ImageBytes) {
       throw new Error('Image generation failed, no image bytes returned.');
   }
-  const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
-
-  return { ideaTitle: idea.title, caption, imageText, imageUrl };
+  return `data:image/jpeg;base64,${base64ImageBytes}`;
 }

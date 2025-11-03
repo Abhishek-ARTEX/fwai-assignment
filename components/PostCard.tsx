@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { InstagramPost } from '../types';
+import { ClipboardIcon } from './icons/ClipboardIcon';
 
 interface PostCardProps {
   post: InstagramPost;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ post }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(post.caption).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    });
+  };
+
   return (
     <div className="post-card">
       <div 
@@ -23,6 +33,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         <p className="post-card-caption">
           {post.caption}
         </p>
+      </div>
+      <div className="post-card-footer">
+        <button onClick={handleCopy} className="copy-button">
+          <ClipboardIcon />
+          <span>{copied ? 'Copied!' : 'Copy Caption'}</span>
+        </button>
       </div>
     </div>
   );
