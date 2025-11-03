@@ -5,32 +5,31 @@ import { NewsArticle, ViralIdea, InstagramPost } from '../types';
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function findTopNews(industry: string): Promise<NewsArticle[]> {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `Find the top 10 most recent and significant news articles in the ${industry} industry. For each article, provide the title, a one-sentence summary, and the direct URL.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            summary: { type: Type.STRING },
-            url: { type: Type.STRING },
-          },
-          required: ["title", "summary", "url"],
-        },
-      },
-    },
-  });
+  const apiKey = process.env.GNEWS_API_KEY;
+  if (!apiKey) {
+    throw new Error("GNews API key is missing. Please set the GNEWS_API_KEY environment variable.");
+  }
 
-  const jsonText = response.text.trim();
+  const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(industry)}&lang=en&sortby=relevance&max=10&apikey=${apiKey}`;
+
   try {
-      return JSON.parse(jsonText);
-  } catch(e) {
-      console.error("Failed to parse news articles JSON:", jsonText);
-      throw new Error("Could not parse news articles from AI response.");
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`GNews API error: ${errorData.errors.join(', ')}`);
+    }
+
+    const data = await response.json();
+    
+    // Map the GNews article format to our internal NewsArticle type
+    return data.articles.map((article: any) => ({
+      title: article.title,
+      summary: article.description,
+      url: article.url,
+    }));
+  } catch (error: any) {
+    console.error("Failed to fetch news from GNews API:", error);
+    throw new Error(`Could not fetch news from GNews API: ${error.message}`);
   }
 }
 
